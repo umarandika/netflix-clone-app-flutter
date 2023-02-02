@@ -25,7 +25,7 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false, home: NavBar(),
       theme: ThemeData(fontFamily: 'NetflixSans'),
 
-      // Scaffold(
+      // Scaffold(iii
       //     backgroundColor: Colors.black,
       //     appBar: AppBar(title: Text("Bencana terberat ilmu adalah lupa")),
       //     body: NetflixHome())
