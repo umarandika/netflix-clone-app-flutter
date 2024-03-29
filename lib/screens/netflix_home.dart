@@ -1,3 +1,5 @@
+// ignore_for_file: sort_child_properties_last, avoid_print, prefer_interpolation_to_compose_strings, prefer_const_constructors
+
 import 'package:flutter/material.dart';
 import 'package:umar12/models/images.dart';
 import 'package:umar12/screens/movie_details.dart';
@@ -14,11 +16,17 @@ class NetflixHome extends StatefulWidget {
 class _NetflixHomeState extends State<NetflixHome> {
   static String path = "assets/images/";
   static String netflix_path = "assets/images/netflix/";
+  static int movieID = 0;
 
   Map upcoming = {};
+  Map genres = {};
+  Map movieDetails = {};
+  List logos = [];
+  List posters = [];
 
   @override
   void initState() {
+    super.initState();
     getUpcoming();
   }
 
@@ -30,10 +38,92 @@ class _NetflixHomeState extends State<NetflixHome> {
       upcoming = get;
     });
     print(upcoming["results"]);
+    print('https://image.tmdb.org/t/p/w154' +
+        upcoming["results"][2]["poster_path"]);
+    setState(() {
+      movieID = upcoming["results"][0]["id"];
+    });
+    print("KONTOL 1");
+    await getImages(movieID);
+    await getDetails(movieID);
+    print("KONTOL 2");
   }
+
+  Future<void> getImages(int id) async {
+    // get API user from endpoint USER
+
+    final getImages = await APIFUNC.getImages(id);
+    print("KONTOL 3");
+    setState(() {
+      logos = getImages["logos"];
+      posters = getImages["posters"];
+    });
+    print(logos);
+    print(posters);
+    print("KONTOL 4");
+    // searchLogo(logos);
+  }
+
+  Future<void> getDetails(int id) async {
+    // get API user from endpoint USER
+
+    final getDetails = await APIFUNC.getDetails(id);
+    print("GET DETAILSSSSS");
+    setState(() {
+      movieDetails = getDetails;
+    });
+    print("MOVIE DETAILS $movieDetails");
+  }
+
+  Map searchLogo(logos) {
+    for (var logo in logos) {
+      if (logo["iso_639_1"] == "en") {
+        return logo;
+      }
+    }
+    return {};
+  }
+
+  Map searchHeroPoster(posters) {
+    for (var poster in posters) {
+      if (poster["iso_639_1"] == null) {
+        return poster;
+      }
+    }
+    return {};
+  }
+
+  final String imagePath = 'https://image.tmdb.org/t/p/original';
 
   @override
   Widget build(BuildContext context) {
+    final String heroLogo = searchLogo(logos)["file_path"];
+    print("POSTERS ${searchHeroPoster(posters)["file_path"]}");
+    final String heroPoster = searchHeroPoster(posters)["file_path"];
+    print(heroLogo);
+    print("HERO POSTER" + heroPoster);
+    // dynamic genres = movieDetails["genres"];
+    print("GENRES" + movieDetails["genres"].toString());
+    List<String> genreNames = [];
+    int genreLength =
+        movieDetails["genres"].length > 3 ? 3 : movieDetails["genres"].length;
+    for (int i = 0; i < genreLength; i++) {
+      genreNames.add(movieDetails["genres"][i]["name"]);
+    }
+    print("GENRE NAMES" + genreNames.toString());
+    List<Widget> widgetGenre = [];
+    for (int i = 0; i < genreNames.length; i++) {
+      widgetGenre.add(
+        EasyText(
+            text: genreNames[i], fontWeight: FontWeight.bold, fontSize: 12),
+      );
+      if (i != genreNames.length - 1) {
+        widgetGenre.add(
+          Dot(),
+        );
+      }
+    }
+
     return Scaffold(
         extendBodyBehindAppBar: true,
         backgroundColor: Colors.black,
@@ -77,15 +167,15 @@ class _NetflixHomeState extends State<NetflixHome> {
               child: Stack(alignment: Alignment.center, children: [
             Container(
                 alignment: Alignment.topCenter,
-                height: 500,
+                height: 600,
                 decoration: BoxDecoration(
                     image: DecorationImage(
                         alignment: Alignment(0.0, -1),
                         fit: BoxFit.cover,
-                        image: Image.asset(jw_hero).image))),
+                        image: NetworkImage(imagePath + heroPoster)))),
             Container(
                 alignment: Alignment.topCenter,
-                height: 500,
+                height: 600,
                 decoration: const BoxDecoration(
                     // color: Colors.black,
                     gradient: LinearGradient(
@@ -96,27 +186,31 @@ class _NetflixHomeState extends State<NetflixHome> {
               width: 250,
               bottom: 0,
               child: Column(children: [
-                Image.asset(jw_title),
+                Image.network(imagePath + heroLogo, height: 100),
                 Divider(),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    EasyText(
-                        text: "Action",
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12),
-                    Dot(),
-                    EasyText(
-                        text: "Crime",
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12),
-                    Dot(),
-                    EasyText(
-                        text: "Thriller",
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12),
-                  ],
-                ),
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: widgetGenre),
+
+                // for (var i in [1, 2, 3]){
+
+                //   Text(
+                //     "⭐",
+                //     style: TextStyle(color: Color.fromARGB(255, 217, 142, 89)),
+                //   )
+
+                // }
+
+                // EasyText(
+                //     text: "Crime",
+                //     fontWeight: FontWeight.bold,
+                //     fontSize: 12),
+                // Dot(),
+                // EasyText(
+                //     text: "Thriller",
+                //     fontWeight: FontWeight.bold,
+                //     fontSize: 12),
+
                 Divider(),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -205,9 +299,9 @@ class _NetflixHomeState extends State<NetflixHome> {
                                     borderRadius: const BorderRadius.all(
                                         Radius.circular(3)),
                                     image: DecorationImage(
-                                        image:
-                                            Image.asset(listMovie[index].poster)
-                                                .image,
+                                        image: NetworkImage(imagePath +
+                                            upcoming["results"][index + 1]
+                                                ["poster_path"]),
                                         fit: BoxFit.cover)),
                               ),
                             );
