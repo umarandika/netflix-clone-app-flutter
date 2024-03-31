@@ -7,23 +7,9 @@ import 'package:umar12/styles/buttons.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 class DetailScreen extends StatefulWidget {
-  String trailer;
-  String poster;
-  String desc;
-  String cast;
-  String detail;
-  String rating;
-  List category;
+  final int movieId;
 
-  DetailScreen(
-      {Key? key,
-      required this.trailer,
-      required this.poster,
-      required this.desc,
-      required this.cast,
-      required this.detail,
-      required this.rating,
-      required this.category});
+  DetailScreen({Key? key, required this.movieId});
 
   @override
   State<DetailScreen> createState() => _DetailScreenState();
@@ -31,22 +17,80 @@ class DetailScreen extends StatefulWidget {
 
 class _DetailScreenState extends State<DetailScreen> {
   late YoutubePlayerController _controller;
+  Map upcoming = {};
+  Map genres = {};
+  Map movieDetails = {};
+  List logos = [];
+  List posters = [];
+  final String imagePath = 'https://image.tmdb.org/t/p/original';
   // final videoUrl = "https://www.youtube.com/watch?v=pDJbckSMN0w";
 
-  // @override
-  // void initState() {
-  //   _controller = YoutubePlayerController(
-  //       initialVideoId: YoutubePlayer.convertUrlToId(videoUrl)!,
-  //       flags: const YoutubePlayerFlags(
-  //         mute: false,
-  //         loop: false,
-  //         autoPlay: false,
-  //       ));
-  //   super.initState();
-  // }
+  @override
+  void initState() {
+    // _controller = YoutubePlayerController(
+    //     initialVideoId: YoutubePlayer.convertUrlToId(videoUrl)!,
+    //     flags: const YoutubePlayerFlags(
+    //       mute: false,
+    //       loop: false,
+    //       autoPlay: false,
+    //     ));
+    getDetails(widget.movieId);
+    super.initState();
+  }
+
+  Future<void> getDetails(int id) async {
+    // get API user from endpoint USER
+    final getDetails = await APIFUNC.getDetails(id);
+    print("GET DETAILSSSSS");
+    setState(() {
+      movieDetails = getDetails;
+    });
+    print("GET DETAILSSSSS" + " " + movieDetails.toString());
+    print("LOGOS " + movieDetails["images"]["logos"].toString());
+    print("MOVIE DETAILS $movieDetails");
+
+    setState(() {
+      logos = movieDetails["images"]["logos"];
+      posters = movieDetails["images"]["posters"];
+      print("D O N E");
+    });
+  }
+
+  String cast() {
+    Map credits = movieDetails["credits"];
+    String names = "";
+    List<String> cast = [];
+    for (int i = 0; i < 3; i++) {
+      cast.add(credits["cast"][i]["name"]);
+    }
+    for (String name in cast) {
+      if (name == cast[cast.length - 1])
+        names += name;
+      else
+        names += name + ", ";
+    }
+    return names;
+  }
 
   @override
   Widget build(BuildContext context) {
+    print("GENRES" + movieDetails["genres"].toString());
+    // print("CAST" + cast().join(", ").toString());
+    List<String> genreNames = [];
+    int genreLength = movieDetails["genres"].length;
+    for (int i = 0; i < genreLength; i++) {
+      genreNames.add(movieDetails["genres"][i]["name"]);
+    }
+    print("GENRE NAMES" + genreNames.toString());
+    String date = movieDetails["release_date"];
+    List<String> dateParts = date.split('-');
+    String year = dateParts[0];
+    int minutes = movieDetails["runtime"];
+    int hours = minutes ~/ 60; // Integer division
+    int remainingMinutes = minutes % 60; // Modulus to get remaining minutes
+
+    String runtime = "${hours}hr ${remainingMinutes}min";
+    print(year);
     return Scaffold(
         backgroundColor: Colors.black,
         body: SingleChildScrollView(
@@ -58,10 +102,10 @@ class _DetailScreenState extends State<DetailScreen> {
                     image: DecorationImage(
                         // alignment: Alignment(0.0, -1),
                         fit: BoxFit.cover,
-                        image: Image.asset(
-                          widget.poster,
+                        image: NetworkImage(
+                          imagePath + movieDetails["poster_path"],
                           scale: 0.1,
-                        ).image)),
+                        ))),
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 20.5, sigmaY: 20.5),
                   child: Container(
@@ -98,8 +142,8 @@ class _DetailScreenState extends State<DetailScreen> {
                                   ],
                                   image: DecorationImage(
                                       fit: BoxFit.cover,
-                                      image:
-                                          Image.asset(widget.poster).image))),
+                                      image: NetworkImage(imagePath +
+                                          movieDetails["poster_path"])))),
                         ),
 
                         Align(
@@ -109,14 +153,15 @@ class _DetailScreenState extends State<DetailScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Text(
-                                  widget.rating + " (IMDB)",
+                                  movieDetails["vote_average"].toString() +
+                                      " (${movieDetails["vote_count"]})",
                                   style: TextStyle(
                                       color: Color.fromARGB(255, 43, 147, 47),
                                       fontWeight: FontWeight.bold),
                                 ),
                                 Padding(padding: EdgeInsets.all(7)),
                                 Text(
-                                  widget.detail,
+                                  year + " | " + runtime,
                                   style: TextStyle(color: Colors.grey),
                                 ),
                               ],
@@ -146,13 +191,19 @@ class _DetailScreenState extends State<DetailScreen> {
                                 )
                               ],
                             )),
-
+                        EasyText(
+                          text: movieDetails["title"],
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          padding: const EdgeInsets.fromLTRB(0, 15, 0, 0),
+                        ),
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 7.0),
-                          child: EasyText(text: widget.desc, fontSize: 15),
+                          child: EasyText(
+                              text: movieDetails["overview"], fontSize: 15),
                         ),
                         EasyText(
-                            text: "Cast: " + widget.cast,
+                            text: "Cast: ${cast()}",
                             color: Colors.grey,
                             fontSize: 13),
 
@@ -161,7 +212,7 @@ class _DetailScreenState extends State<DetailScreen> {
                           height: 40,
                           child: ListView.builder(
                               scrollDirection: Axis.horizontal,
-                              itemCount: widget.category.length,
+                              itemCount: genreNames.length,
                               itemBuilder: (BuildContext context, int index) {
                                 return Container(
                                   margin: EdgeInsets.only(right: 10),
@@ -172,8 +223,7 @@ class _DetailScreenState extends State<DetailScreen> {
                                       // color: Colors.blue,
                                       borderRadius: BorderRadius.circular(100)),
                                   child: EasyText(
-                                      text: widget.category[index],
-                                      fontSize: 13),
+                                      text: genreNames[index], fontSize: 13),
                                 );
                               }),
                         ),
@@ -264,10 +314,10 @@ class _DetailScreenState extends State<DetailScreen> {
                         image: DecorationImage(
                             // alignment: Alignment(0.0, -1),
                             fit: BoxFit.cover,
-                            image: Image.asset(
-                              widget.trailer,
+                            image: NetworkImage(
+                              imagePath + movieDetails["backdrop_path"],
                               scale: 0.1,
-                            ).image)),
+                            ))),
                     child: Container(
                       color: Colors.black.withOpacity(0.5),
                       child: Icon(

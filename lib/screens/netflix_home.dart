@@ -14,65 +14,110 @@ class NetflixHome extends StatefulWidget {
 }
 
 class _NetflixHomeState extends State<NetflixHome> {
-  static String path = "assets/images/";
+  // static String path = "assets/images/";
   static String netflix_path = "assets/images/netflix/";
   static int movieID = 0;
 
-  Map upcoming = {};
+  Map nowPlaying = {};
+  Map topRatedSeries = {};
+  Map seriesDetails = {};
+  Map popular = {};
   Map genres = {};
   Map movieDetails = {};
   List logos = [];
   List posters = [];
+  List<Map> seriesList = [];
 
   @override
   void initState() {
     super.initState();
-    getUpcoming();
+    getNowPlaying();
+    getPopular();
+    getTopRatedSeries();
   }
 
-  Future<void> getUpcoming() async {
-    // get API user from endpoint USER
-    final get = await APIFUNC.getUpcoming();
+  // GET DETAILS SERIES
+  Future<Map> getDetailsSeries(int id) async {
+    final get = await APIFUNC.getDetailsSeries(id);
+    setState(() {
+      seriesDetails = get;
+    });
+    print("DETAIL SERIES" + seriesDetails.toString());
+    return seriesDetails;
+  }
+
+  // GET TOP RATED SERIES
+  Future<void> getTopRatedSeries() async {
+    final get = await APIFUNC.getTopRatedSeries();
+    setState(() {
+      topRatedSeries = get;
+    });
+    List<Map> filteredSeries = [];
+    for (var series in topRatedSeries["results"]) {
+      if (series["vote_average"] > 8 &&
+          series["vote_count"] > 3000 &&
+          filteredSeries.length < 3) {
+        filteredSeries.add(series);
+      }
+    }
+    setState(() {
+      topRatedSeries["results"] = filteredSeries;
+    });
+    for (int i = 0; i < topRatedSeries["results"].length; i++) {
+      final temp = await getDetailsSeries(topRatedSeries["results"][i]["id"]);
+      Map tempMap = {
+        "id": topRatedSeries["results"][i]["id"],
+        "name": topRatedSeries["results"][i]["name"],
+        "poster_path": topRatedSeries["results"][i]["poster_path"],
+        "backdrop_path": topRatedSeries["results"][i]["backdrop_path"],
+        "genres": temp["genres"],
+        "overview": temp["overview"],
+        "vote_average": temp["vote_average"],
+        "vote_count": temp["vote_count"],
+        "images": temp["images"],
+        "credits": temp["credits"]
+      };
+      setState(() {
+        seriesList.add(tempMap);
+      });
+    }
+  }
+
+  // GET NOW PLAYING MOVIES
+  Future<void> getNowPlaying() async {
+    final get = await APIFUNC.getNowPlaying();
 
     setState(() {
-      upcoming = get;
+      nowPlaying = get;
     });
-    print(upcoming["results"]);
+    print(nowPlaying["results"]);
     print('https://image.tmdb.org/t/p/w154' +
-        upcoming["results"][2]["poster_path"]);
+        nowPlaying["results"][2]["poster_path"]);
     setState(() {
-      movieID = upcoming["results"][0]["id"];
+      movieID = nowPlaying["results"][0]["id"];
     });
-    print("KONTOL 1");
-    await getImages(movieID);
     await getDetails(movieID);
-    print("KONTOL 2");
   }
 
-  Future<void> getImages(int id) async {
-    // get API user from endpoint USER
+  // GET POPULAR MOVIES
+  Future<void> getPopular() async {
+    final get = await APIFUNC.getPopular();
 
-    final getImages = await APIFUNC.getImages(id);
-    print("KONTOL 3");
     setState(() {
-      logos = getImages["logos"];
-      posters = getImages["posters"];
+      popular = get;
     });
-    print(logos);
-    print(posters);
-    print("KONTOL 4");
-    // searchLogo(logos);
   }
 
+  // GET DETAILS MOVIES
   Future<void> getDetails(int id) async {
-    // get API user from endpoint USER
-
     final getDetails = await APIFUNC.getDetails(id);
-    print("GET DETAILSSSSS");
     setState(() {
       movieDetails = getDetails;
     });
-    print("MOVIE DETAILS $movieDetails");
+    setState(() {
+      logos = movieDetails["images"]["logos"];
+      posters = movieDetails["images"]["posters"];
+    });
   }
 
   Map searchLogo(logos) {
@@ -102,7 +147,6 @@ class _NetflixHomeState extends State<NetflixHome> {
     final String heroPoster = searchHeroPoster(posters)["file_path"];
     print(heroLogo);
     print("HERO POSTER" + heroPoster);
-    // dynamic genres = movieDetails["genres"];
     print("GENRES" + movieDetails["genres"].toString());
     List<String> genreNames = [];
     int genreLength =
@@ -123,6 +167,7 @@ class _NetflixHomeState extends State<NetflixHome> {
         );
       }
     }
+    print("BACKDROP PATH" + imagePath + movieDetails["backdrop_path"]);
 
     return Scaffold(
         extendBodyBehindAppBar: true,
@@ -151,11 +196,7 @@ class _NetflixHomeState extends State<NetflixHome> {
                     child: Container(
                       height: 30,
                       width: 30,
-                      decoration: BoxDecoration(
-                          image: DecorationImage(
-                              alignment: FractionalOffset.topCenter,
-                              image: Image.asset(path + "5.png").image,
-                              fit: BoxFit.fitWidth)),
+                      color: Colors.white,
                     ),
                   )
                 ]),
@@ -191,26 +232,6 @@ class _NetflixHomeState extends State<NetflixHome> {
                 Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: widgetGenre),
-
-                // for (var i in [1, 2, 3]){
-
-                //   Text(
-                //     "⭐",
-                //     style: TextStyle(color: Color.fromARGB(255, 217, 142, 89)),
-                //   )
-
-                // }
-
-                // EasyText(
-                //     text: "Crime",
-                //     fontWeight: FontWeight.bold,
-                //     fontSize: 12),
-                // Dot(),
-                // EasyText(
-                //     text: "Thriller",
-                //     fontWeight: FontWeight.bold,
-                //     fontSize: 12),
-
                 Divider(),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -224,13 +245,7 @@ class _NetflixHomeState extends State<NetflixHome> {
                           context,
                           MaterialPageRoute(builder: (context) {
                             return DetailScreen(
-                              trailer: jw_trailer,
-                              poster: jw_poster,
-                              desc: jw_desc,
-                              rating: jw_rating,
-                              detail: jw_detail,
-                              cast: jw_cast,
-                              category: jw_category,
+                              movieId: movieID,
                             );
                           }),
                         );
@@ -258,7 +273,7 @@ class _NetflixHomeState extends State<NetflixHome> {
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 18.0),
                       child: Text(
-                        "You Might Like",
+                        "Now Playing",
                         style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -271,7 +286,7 @@ class _NetflixHomeState extends State<NetflixHome> {
                           scrollDirection: Axis.horizontal,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 12),
-                          itemCount: listMovie.length,
+                          itemCount: 10,
                           itemBuilder: (BuildContext context, int index) {
                             return GestureDetector(
                               onTap: () {
@@ -279,13 +294,8 @@ class _NetflixHomeState extends State<NetflixHome> {
                                   context,
                                   MaterialPageRoute(builder: (context) {
                                     return DetailScreen(
-                                      trailer: listMovie[index].trailer,
-                                      poster: listMovie[index].poster,
-                                      desc: listMovie[index].desc,
-                                      rating: listMovie[index].rating,
-                                      detail: listMovie[index].detail,
-                                      cast: listMovie[index].cast,
-                                      category: listMovie[index].category,
+                                      movieId: nowPlaying["results"][index + 1]
+                                          ["id"],
                                     );
                                   }),
                                 );
@@ -300,7 +310,55 @@ class _NetflixHomeState extends State<NetflixHome> {
                                         Radius.circular(3)),
                                     image: DecorationImage(
                                         image: NetworkImage(imagePath +
-                                            upcoming["results"][index + 1]
+                                            nowPlaying["results"][index + 1]
+                                                ["poster_path"]),
+                                        fit: BoxFit.cover)),
+                              ),
+                            );
+                          }),
+                    ),
+                    Divider(),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 18.0),
+                      child: Text(
+                        "Popular",
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 20),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 200,
+                      child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 12),
+                          itemCount: 10,
+                          itemBuilder: (BuildContext context, int index) {
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) {
+                                    return DetailScreen(
+                                      movieId: popular["results"][index + 1]
+                                          ["id"],
+                                    );
+                                  }),
+                                );
+                              },
+                              child: Container(
+                                margin:
+                                    const EdgeInsets.symmetric(horizontal: 8),
+                                // height: 150,
+                                width: 120,
+                                decoration: BoxDecoration(
+                                    borderRadius: const BorderRadius.all(
+                                        Radius.circular(3)),
+                                    image: DecorationImage(
+                                        image: NetworkImage(imagePath +
+                                            popular["results"][index + 1]
                                                 ["poster_path"]),
                                         fit: BoxFit.cover)),
                               ),
@@ -372,173 +430,264 @@ class _NetflixHomeState extends State<NetflixHome> {
                           fontWeight: FontWeight.bold,
                           fontSize: 20),
                     ),
-                    GestureDetector(
-                      child: Container(
-                        margin: EdgeInsets.only(top: 12),
-                        height: 150,
-                        width: MediaQuery.of(context).size.width,
-                        decoration: BoxDecoration(
-                          borderRadius:
-                              const BorderRadius.all(Radius.circular(3)),
-                          // color: Colors.white
-                          image: DecorationImage(
-                              image: Image.asset(st_poster).image,
-                              fit: BoxFit.cover),
-                        ),
+                    for (int i = 0; i < seriesList.length; i++)
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (context) {
+                              return DetailScreen(
+                                movieId: seriesList[i]["id"],
+                              );
+                            }),
+                          );
+                        },
                         child: Container(
-                          color: Color.fromARGB(117, 8, 8, 8),
-                          padding: EdgeInsets.all(10),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              EasyText(
-                                text: "A NETFLIX ORIGINAL",
-                                fontSize: 10,
-                                padding: EdgeInsets.only(bottom: 5),
-                              ),
-                              Image.asset(
-                                st_title,
-                                width: 130,
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.only(top: 10.0),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                              bottom: 8.0),
-                                          child: EasyText(
-                                              text: "2016 | PG-13 | 2h 9m",
-                                              fontSize: 13,
-                                              color: Color.fromRGBO(
-                                                  255, 255, 255, 120)),
-                                        ),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            EasyText(
-                                                text: "Action",
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12),
-                                            Dot(),
-                                            EasyText(
-                                                text: "Crime",
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12),
-                                            Dot(),
-                                            EasyText(
-                                                text: "Thriller",
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                    Icon(
-                                      Icons.play_circle,
-                                      color: Colors.white,
-                                      size: 40,
-                                    ),
-                                  ],
+                          margin: const EdgeInsets.only(top: 12),
+                          height: 150,
+                          width: MediaQuery.of(context).size.width,
+                          decoration: BoxDecoration(
+                            borderRadius:
+                                const BorderRadius.all(Radius.circular(3)),
+                            // color: Colors.white
+                            image: DecorationImage(
+                                image: NetworkImage(
+                                    imagePath + seriesList[i]["backdrop_path"]),
+                                fit: BoxFit.cover),
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [
+                                Color.fromARGB(222, 8, 8, 8),
+                                Color.fromARGB(59, 8, 8, 8),
+                              ],
+                              stops: [0.0, 0.7],
+                            )),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                EasyText(
+                                  text: "A NETFLIX ORIGINALS",
+                                  fontSize: 10,
+                                  padding: const EdgeInsets.only(bottom: 5),
                                 ),
-                              )
-                            ],
+                                Image.network(
+                                  imagePath +
+                                      seriesList[i]["images"]["logos"][0]
+                                          ["file_path"],
+                                  width: 130,
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 10.0),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.only(
+                                                bottom: 8.0),
+                                            child: EasyText(
+                                                text: "2016 | PG-13 | 2h 9m",
+                                                fontSize: 13,
+                                                color: Color.fromRGBO(
+                                                    255, 255, 255, 120)),
+                                          ),
+                                          // Row(
+                                          //   mainAxisAlignment:
+                                          //       MainAxisAlignment.center,
+                                          //   children: widgetGenre,
+                                          // ),
+                                        ],
+                                      ),
+                                      Icon(
+                                        Icons.play_circle,
+                                        color: Colors.white,
+                                        size: 40,
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    GestureDetector(
-                      child: Container(
-                        margin: EdgeInsets.only(top: 12),
-                        height: 150,
-                        width: MediaQuery.of(context).size.width,
-                        decoration: BoxDecoration(
-                          borderRadius:
-                              const BorderRadius.all(Radius.circular(3)),
-                          // color: Colors.white
-                          image: DecorationImage(
-                              alignment: Alignment.topCenter,
-                              image: Image.asset(pb_poster).image,
-                              fit: BoxFit.cover),
-                        ),
-                        child: Container(
-                          color: Color.fromARGB(117, 8, 8, 8),
-                          padding: EdgeInsets.all(10),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              EasyText(
-                                text: "A NETFLIX ORIGINAL",
-                                fontSize: 10,
-                                padding: EdgeInsets.only(bottom: 5),
-                              ),
-                              Image.asset(
-                                pb_title,
-                                width: 170,
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.only(top: 10.0),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                              bottom: 8.0),
-                                          child: EasyText(
-                                              text: "2016 | PG-13 | 2h 9m",
-                                              fontSize: 13,
-                                              color: Color.fromRGBO(
-                                                  255, 255, 255, 120)),
-                                        ),
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            EasyText(
-                                                text: "Action",
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12),
-                                            Dot(),
-                                            EasyText(
-                                                text: "Crime",
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12),
-                                            Dot(),
-                                            EasyText(
-                                                text: "Thriller",
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 12),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                    Icon(
-                                      Icons.play_circle,
-                                      color: Colors.white,
-                                      size: 40,
-                                    ),
-                                  ],
-                                ),
-                              )
-                            ],
-                          ),
-                        ),
-                      ),
-                    )
+                    // GestureDetector(
+                    //   child: Container(
+                    //     margin: EdgeInsets.only(top: 12),
+                    //     height: 150,
+                    //     width: MediaQuery.of(context).size.width,
+                    //     decoration: BoxDecoration(
+                    //       borderRadius:
+                    //           const BorderRadius.all(Radius.circular(3)),
+                    //       // color: Colors.white
+                    //       image: DecorationImage(
+                    //           image: Image.asset(st_poster).image,
+                    //           fit: BoxFit.cover),
+                    //     ),
+                    //     child: Container(
+                    //       color: Color.fromARGB(117, 8, 8, 8),
+                    //       padding: EdgeInsets.all(10),
+                    //       child: Column(
+                    //         mainAxisAlignment: MainAxisAlignment.end,
+                    //         crossAxisAlignment: CrossAxisAlignment.start,
+                    //         children: [
+                    //           EasyText(
+                    //             text: "A NETFLIX ORIGINAL",
+                    //             fontSize: 10,
+                    //             padding: EdgeInsets.only(bottom: 5),
+                    //           ),
+                    //           Image.asset(
+                    //             st_title,
+                    //             width: 130,
+                    //           ),
+                    //           Padding(
+                    //             padding: const EdgeInsets.only(top: 10.0),
+                    //             child: Row(
+                    //               mainAxisAlignment:
+                    //                   MainAxisAlignment.spaceBetween,
+                    //               children: [
+                    //                 Column(
+                    //                   crossAxisAlignment:
+                    //                       CrossAxisAlignment.start,
+                    //                   children: [
+                    //                     Padding(
+                    //                       padding: const EdgeInsets.only(
+                    //                           bottom: 8.0),
+                    //                       child: EasyText(
+                    //                           text: "2016 | PG-13 | 2h 9m",
+                    //                           fontSize: 13,
+                    //                           color: Color.fromRGBO(
+                    //                               255, 255, 255, 120)),
+                    //                     ),
+                    //                     Row(
+                    //                       mainAxisAlignment:
+                    //                           MainAxisAlignment.center,
+                    //                       children: [
+                    //                         EasyText(
+                    //                             text: "Action",
+                    //                             fontWeight: FontWeight.bold,
+                    //                             fontSize: 12),
+                    //                         Dot(),
+                    //                         EasyText(
+                    //                             text: "Crime",
+                    //                             fontWeight: FontWeight.bold,
+                    //                             fontSize: 12),
+                    //                         Dot(),
+                    //                         EasyText(
+                    //                             text: "Thriller",
+                    //                             fontWeight: FontWeight.bold,
+                    //                             fontSize: 12),
+                    //                       ],
+                    //                     ),
+                    //                   ],
+                    //                 ),
+                    //                 Icon(
+                    //                   Icons.play_circle,
+                    //                   color: Colors.white,
+                    //                   size: 40,
+                    //                 ),
+                    //               ],
+                    //             ),
+                    //           )
+                    //         ],
+                    //       ),
+                    //     ),
+                    //   ),
+                    // ),
+                    // // GestureDetector(
+                    //   child: Container(
+                    //     margin: EdgeInsets.only(top: 12),
+                    //     height: 150,
+                    //     width: MediaQuery.of(context).size.width,
+                    //     decoration: BoxDecoration(
+                    //       borderRadius:
+                    //           const BorderRadius.all(Radius.circular(3)),
+                    //       // color: Colors.white
+                    //       image: DecorationImage(
+                    //           alignment: Alignment.topCenter,
+                    //           image: Image.asset(pb_poster).image,
+                    //           fit: BoxFit.cover),
+                    //     ),
+                    //     child: Container(
+                    //       color: Color.fromARGB(117, 8, 8, 8),
+                    //       padding: EdgeInsets.all(10),
+                    //       child: Column(
+                    //         mainAxisAlignment: MainAxisAlignment.end,
+                    //         crossAxisAlignment: CrossAxisAlignment.start,
+                    //         children: [
+                    //           EasyText(
+                    //             text: "A NETFLIX ORIGINAL",
+                    //             fontSize: 10,
+                    //             padding: EdgeInsets.only(bottom: 5),
+                    //           ),
+                    //           Image.asset(
+                    //             pb_title,
+                    //             width: 170,
+                    //           ),
+                    //           Padding(
+                    //             padding: const EdgeInsets.only(top: 10.0),
+                    //             child: Row(
+                    //               mainAxisAlignment:
+                    //                   MainAxisAlignment.spaceBetween,
+                    //               children: [
+                    //                 Column(
+                    //                   crossAxisAlignment:
+                    //                       CrossAxisAlignment.start,
+                    //                   children: [
+                    //                     Padding(
+                    //                       padding: const EdgeInsets.only(
+                    //                           bottom: 8.0),
+                    //                       child: EasyText(
+                    //                           text: "2016 | PG-13 | 2h 9m",
+                    //                           fontSize: 13,
+                    //                           color: Color.fromRGBO(
+                    //                               255, 255, 255, 120)),
+                    //                     ),
+                    //                     Row(
+                    //                       mainAxisAlignment:
+                    //                           MainAxisAlignment.center,
+                    //                       children: [
+                    //                         EasyText(
+                    //                             text: "Action",
+                    //                             fontWeight: FontWeight.bold,
+                    //                             fontSize: 12),
+                    //                         Dot(),
+                    //                         EasyText(
+                    //                             text: "Crime",
+                    //                             fontWeight: FontWeight.bold,
+                    //                             fontSize: 12),
+                    //                         Dot(),
+                    //                         EasyText(
+                    //                             text: "Thriller",
+                    //                             fontWeight: FontWeight.bold,
+                    //                             fontSize: 12),
+                    //                       ],
+                    //                     ),
+                    //                   ],
+                    //                 ),
+                    //                 Icon(
+                    //                   Icons.play_circle,
+                    //                   color: Colors.white,
+                    //                   size: 40,
+                    //                 ),
+                    //               ],
+                    //             ),
+                    //           )
+                    //         ],
+                    //       ),
+                    //     ),
+                    //   ),
+                    // )
                   ]),
             ),
           )
